@@ -263,7 +263,7 @@ NumericVector crossprod_st(List x, NumericVector y_) {
 }
 */
 // [[Rcpp::export]]
-void bop(NumericVector& dst, const IntegerVector& mv, const string& sop, NumericVector& src) {
+void bop(NumericVector& dst, const IntegerVector& mv, const std::string& sop, NumericVector& src) {
    // bop=bloc operation in place
    // src array is added (if sop=="+=") to dst[...]
    // or any other manipulation is made according to sop parameter
