@@ -427,7 +427,7 @@ void resize(SEXP& x_, uvec& di) {
    }
 #endif
    //Rcout << "n=" << XLENGTH(x_) << endl;
-   unsigned int pdi=prod(di);
+   int pdi= (int) prod(di);
    if (TRUELENGTH(x_) >= pdi)
       SETLENGTH(x_, pdi);
    else
