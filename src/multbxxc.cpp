@@ -1,23 +1,3 @@
-/*
-Calculate inplace a_t-=b_t%*%c_t where a, b, c are matrices,
-t is index in time and %*% is a dot product.
-b is a sparse matrix of size (nr_b*ntico, nc_b) given by its fields
-_v, _i, and _j describing triplet storage.
-the size of c which is dense array is (ldc, nc_c, ntico) and those
-of a (also a 3D array) is (nr_b, nc_c, ntico).
-The parameter ldc must be >= ncol(b)
-The result is subtracted from a, so if a pure multiplication result is needed,
-user must initialized a to 0 before call
-
-To compile do in R
-Sys.setenv(PKG_LIBS=file.path(system.file(package="rmumps"), "libs", paste("rmumps", .Platform$dynlib.ext, sep="")))
-sourceCpp("mult_bxxc.cpp")
-
-Author: Serguei Sokol, INRA, Toulouse, FRANCE
-Copyright 2016, INRA
-v 0.1 2016-02-24
-v 0.2 2016-03-04 added solve_ieu(), margins of c are permuted (ntico is last now)
-*/
 #define RCPP_ARMADILLO_RETURN_COLVEC_AS_VECTOR
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
@@ -47,6 +27,17 @@ constexpr unsigned int s2i(const char* str, int h = 0)
 #define NMES 512
 char mes[NMES]={0};
 
+//' Calculate Inplace a Series of Dot Product
+//'
+//' Calculate inplace \code{a_t-=b_t%*%c_t} where a, b, c are matrices,
+//' t is index in time and %*% is a dot product.
+//' The result is subtracted from a, so if a pure multiplication result is needed,
+//' user must initialized a to 0 before call
+//' @param b A sparse matrix (cf. \link[slam]{simple_triplet_matrix}) of size (nr_b*ntico, nc_b) given by its fields
+//' v, i, and j describing triplet storage.
+//' @param c A dense array, the size of c is (ldc, nc_c, ntico), ldc must be >= ncol(b)
+//' @param a A dense array, the size of a is (nr_b, nc_c, ntico)
+//' @export
 // [[Rcpp::export]]
 void mult_bxxc(NumericVector a, List b, NumericVector c) {
    if (!b.inherits("simple_triplet_matrix")) {
@@ -91,23 +82,27 @@ void mult_bxxc(NumericVector a, List b, NumericVector c) {
    //return R_NilValue;
 }
 
+//' Solve ODE System by Implicite Euler Scheme
+//'
+//' The system is defined as \eqn{M*dx/dt=a*x+s} where M is a diagonal
+//' matrix given by its diagonal vector M (which has a form of matrix for
+//' term-by-term multiplication with x0)
+//' In discrete terms
+//' \eqn{(M/dt_i-a)*x_i=(M/dt_i)*x_(i-1)+s_i}
+//' The rmumps matrix \eqn{(M/dt_i-a)} is stored in list ali as XPtr<Rmumps>
+//' or a plain dense inverted matrix.
+//' Calculations are done in-place so s is modified and contains the
+//' solution on exit. The others parameters are not modified.
+//' @param invdt A numeric vactor, represents 1/dt
+//' @param x0_ A numeric matrix or NULL, is the starting value at t0 (NULL means 0)
+//' @param M A numeric matrix representing diagonal terms (masses)
+//' @param ali A list of matrices or Rmumps objects
+//' @param s A 3d numeric array, is the source term, its last margin corresponds to time. \code{s[,,i]} can be a matrix or a vector(== 1-column matrix) 
+//' @param ilua An integer vector, \code{ilua[i]} gives the list index in \code{ali} for a given \eqn{dt_i}. In such a way, \code{ali} may be shorter than time points.
+//' 
+//' @export
 // [[Rcpp::export]]
 void solve_ieu(vec& invdt, const SEXP& x0_, mat& M, ListOf<RObject> ali, cube s, ivec& ilua) {
-   // solve an ode system by implicite euler scheme
-   // The system is defined as M*dx/dt=a*x+s where M is a diagonal
-   // matrix given by its diagonal vector M (which has a form of matrix for
-   // term-by-term multiplication with x0)
-   // In discrete terms
-   // (M/dt_i-a)*x_i=(M/dt_i)*x_(i-1)+s_i
-   // The rmumps matrix (M/dt_i-a) is stored in list ali as XPtr<Rmumps>
-   // or a plain dense inverted matrix.
-   // invdt is 1/dt
-   // x0 is the starting value at t0 (may be NULL)
-   // The source term is in array s, its last margin is time
-   // The ilua[i] gives the list item number in ali for a given dt_i.
-   // Calculations are done in-place so s is modified and contains the
-   // solution on exit. The others parameters are not modified.
-   // s_i can be a matrix or a vector(== 1-column matrix)
    bool addx0=!Rf_isNull(x0_);
 //Rcout << "addx0=" << addx0 << std::endl;
    mat x0;
@@ -137,15 +132,13 @@ void solve_ieu(vec& invdt, const SEXP& x0_, mat& M, ListOf<RObject> ali, cube s,
    if (ilua.size() != nti)
       stop("length(ilua) != length(invdt)");
    // prepare pointers to Rmumps, matrix and a switch
-   vector<Rmumps*> alip(ali.size());
    vector<mat> alim(ali.size());
    vector<bool> alismu(ali.size());
-   
    for (int i=0; i<ali.size(); i++) {
+//Rcout << "i=" << i << "\n";
+//Rf_PrintValue(ali[i]);   
       alismu[i]=ali[i].inherits("Rcpp_Rmumps");
-      if (alismu[i]) {
-         alip[i]=as<XPtr<Rmumps>>(as<Environment>(ali[i].slot(".xData"))[".pointer"]);
-      } else {
+      if (! alismu[i]) {
          tmp=as<NumericVector>(ali[i]);
          alim[i]=mat(tmp.begin(), nxrow, nxrow, false);
       }
@@ -166,10 +159,11 @@ void solve_ieu(vec& invdt, const SEXP& x0_, mat& M, ListOf<RObject> ali, cube s,
       //XPtr<Rmumps> ptr(as<XPtr<Rmumps>>(ali(ilua[i]-1)));
 //Rcout << "s4" << std::endl;
       iali=ilua[i]-1;
-      if (alismu[iali])
-         alip[iali]->solveptr(s.begin_slice(i), nxrow, nxcol);
-      else
+      if (alismu[iali]) {
+         rmumps::Rmumps__solveptr(as<XPtr<Rmumps>>(as<Environment>(as<S4>(ali[iali]).slot(".xData"))[".pointer"]), XPtr<double>(s.begin_slice(i), false), nxrow, nxcol);
+      } else {
          s.slice(i)=alim[iali]*s.slice(i);
+      }
 //Rcout << "s5" << std::endl;
    }
 }
@@ -189,9 +183,17 @@ union ui64 {
 
 typedef std::pair<size_t, ui64> iui64;
 
+//' Fast Match for Matrix Indexes
+//'
+//' Match ix,jx-couple in ti,tj-table and return their 1-based positions (0 for non matched couples)
+//' @param ix An integer vector
+//' @param jx An integer vector
+//' @param ti An integer vector
+//' @param tj An integer vector
+//' @return An integer vector
+//' @export
 // [[Rcpp::export]]
 IntegerVector match_ij(IntegerVector ix, IntegerVector jx, IntegerVector ti, IntegerVector tj) {
-   // match ix,jx-couple in ti,tj-table and return their 1-based positions (0 for non matched couples)
    size_t ni=ix.size(), nti=ti.size();
    
    // Method: put i and j in 64 unsigned vectors, sort and match that vectors
@@ -227,55 +229,28 @@ IntegerVector match_ij(IntegerVector ix, IntegerVector jx, IntegerVector ti, Int
    }
    return(m);
 }
-/* no timing enhancement
-// [[Rcpp::export]]
-NumericVector crossprod_st(List x, NumericVector y_) {
-   // dot product of simple triplet matrix x (m x n) and a dense matrix y (n x k)
-   //Rcout << "here" << endl;
-   int m=x["nrow"], n=x["ncol"], k;
-   //print(x);
-   Dimension ydim(2);
-   //Rcout << "here 2" << endl;
-   if (y_.hasAttribute("dim")) {
-      ydim=y_.attr("dim");
-   } else {
-      ydim=Dimension(y_.size(), 1);
-   }
-   k=ydim[1];
-   if (n != ydim[0])
-      stop("ncol(x) != nrow(y)");
-   IntegerVector ix_=as<IntegerVector>(x["i"])-1, jx_=as<IntegerVector>(x["j"])-1;
-   NumericVector vx_=as<NumericVector>(x["v"]);
-   int *ix=ix_.begin(), *jx=jx_.begin();
-   double *vx=vx_.begin(), *y=y_.begin();
-   NumericVector r_(m*k, 0.);
-   r_.attr("dim") = Dimension(m, k);
-   double *r=r_.begin();
-   //print(ix_);
-   //print(jx_);
-   //print(vx_);
-   for (int jy=0; jy < k; jy++, y+=n, r+=m) {
-      for (int iv=0; iv < vx_.size(); iv++) {
-         r[ix[iv]]+=vx[iv]*y[jx[iv]];
-      }
-   }
-   return r_;
-}
-*/
+
+//' Bloc Operation in Place
+//' 
+//' src array is added (if sop=="+=") to dst[...]
+//' or any other manipulation is made according to sop parameter
+//' Both arrays are supposed to be of type 'double'
+//' The operation is done 'in place' without new memory allocation for dst
+//' src is reshaped and possibly replicated to fit the designated block of dst.
+//' mv can be: \itemize{
+//'  \item a 1 or 3 component vector describing the block: 1-margin number of dst, 2-offset, 3-length
+//'    if only the margin is present than offest is 0 and length is the total length of this margin
+//'  \item a matrix of indexes. Its column number must be equal to the length(dim(dst)))
+//'    each row of this matrix is a multidimensional index in dst array.
+//' }
+//' sop is one off: "=" (copy src to dst[]), "+=", "-=", "*=", "/="
+//' @param dst A numeric array, destination
+//' @param mv An integer vector or matrix, describe margins to operate on
+//' @param sop A string, describes an operator to apply
+//' @param src A numeric array, source (may be replicated to fit the size of dst)
+//' @export
 // [[Rcpp::export]]
 void bop(NumericVector& dst, const IntegerVector& mv, const std::string& sop, NumericVector& src) {
-   // bop=bloc operation in place
-   // src array is added (if sop=="+=") to dst[...]
-   // or any other manipulation is made according to sop parameter
-   // Both arrays are supposed to be of type 'double'
-   // The operation is done 'in place' without new memory allocation for dst
-   // src is reshaped and possibly replicated to fit the designated block of dst.
-   // mv can be:
-   //  - a 1 or 3 component vector describing the block: 1-margin number of dst, 2-offset, 3-length
-   //    if only the margin is present than offest is 0 and length is the total length of this margin
-   //  - a matrix of indexes. Its column number must be equal to the length(dim(dst)))
-   //    each row of this matrix is a multidimensional index in dst array.
-   // sop is one off: "=" (copy src to dst[]), "+=", "-=", "*=", "/="
    
    // layaout arrays as cubes
    uvec did, dis, dimv; // array dimensions
@@ -321,10 +296,10 @@ void bop(NumericVector& dst, const IntegerVector& mv, const std::string& sop, Nu
       stop("Margin value ("+to_string(b[0])+") is invalid. Must be in [1, length(dim(dst)]");
    }
    if (ioff >= did[margin]) {
-      stop("Block offset ("+to_string(ioff)+") is invalid. Must be in [0, dim(dst)[b[0]]-1]");
+      stop("Block offset ("+to_string(ioff)+") is invalid. Must be in [0, dim(dst)[mv[1]]-1]");
    }
    if (len > did[margin]) {
-      stop("Block length ("+to_string(len)+") is invalid. Must be in [0, dim(dst)[b[0]]]");
+      stop("Block length ("+to_string(len)+") is invalid. Must be in [0, dim(dst)[mv[1]]]");
    }
    // prepare cdst dimensions (cdid)
    if (margin > 0) {
@@ -404,19 +379,31 @@ void bop(NumericVector& dst, const IntegerVector& mv, const std::string& sop, Nu
    if (sop == "=")
       cdst.subcube(dfi[0], dfi[1], dfi[2], dla[0], dla[1], dla[2])=csrc;
 }
+//' New Dimensions
+//'
+//' Write new dimension vector while keeping the old memory
+//' @param x A numeric array
+//' @param di An integer vector, new dimensions
+//' @export
 // [[Rcpp::export]]
 void redim(NumericVector& x, uvec& di) {
-   // write new dimension vector while keeping the old memory
    uvec dix;
    dix=x.hasAttribute("dim") ? as<uvec>(x.attr("dim")) : uvec(1).fill(x.size());
    if (prod(dix) != prod(di))
       stop("Space in x ("+to_string(prod(dix))+") is not equal to new one ("+to_string(prod(di))+")");
    x.attr("dim")=di;
 }
+
+//' New Dimensions with Resizing
+//'
+//' Write new dimension vector while keeping the old memory if possible
+//' New memory cannot be greater than the very first allocation
+//' @param x_ A numeric array
+//' @param di An integer vector, new dimensions
+//' @export
 // [[Rcpp::export]]
 void resize(SEXP& x_, uvec& di) {
    // write new dimension vector while keeping the old memory
-   // new memory cannot be greater than the very first allocation
    RObject x=as<RObject>(x_);
    //Rcout << "len=" << LENGTH(x_) << endl;
    //Rcout << "tlen=" << TRUELENGTH(x_) << endl;
@@ -434,13 +421,20 @@ void resize(SEXP& x_, uvec& di) {
       stop("Space in x ("+to_string(TRUELENGTH(x_))+") is not sufficient for new one ("+to_string(pdi)+")");
    x.attr("dim")=di;
 }
+
+//' Transform Repeated Matrix Indexes
+//'
+//' Transforms a couple of index vectors ir and jc (ij of a sparse matrix)
+//' with possibly repeated values into sparse indexes i,j and a vector of 1d indexes of non zero values.
+//' The response can be then used for repeated creation of sparse
+//' matrices with the same pattern by calling \code{iv2v()}
+//' ir and jc are supposed to be sorted in increasing order, column-wise (ic runs first)
+//' @param ir An integer vector, row indexes
+//' @param jc An integer vector, column indexes
+//' @return A list with fields i, j and iv
+//' @export
 // [[Rcpp::export]]
 List ij2ijv_i(IntegerVector& ir, IntegerVector& jc) {
-   // transforms a couple of index vectors ir and jc (ij of a sparse matrix)
-   // with possibly repeated values into a vector of unique indexes of non zero values.
-   // The response can be then used for repeated creation of sparse
-   // matrices with the same pattern by calling iv2v()
-   // i and j are supposed to be sorted in increasing order, column-wise (i runs first)
    if (ir.size() != jc.size()) {
       snprintf(mes, NMES, "Sizes of ir (%d) and jc (%d) must be equal", (int) ir.size(), (int) jc.size());
       stop(mes);
@@ -465,9 +459,17 @@ List ij2ijv_i(IntegerVector& ir, IntegerVector& jc) {
    ju.resize(last);
    return List::create(_["i"]=as<vector<double>>(wrap(iu)), _["j"]=as<vector<double>>(wrap(ju)), _["iv"]=iv);
 }
+
+//' Sum non Zero Repeated Values
+//'
+//' sum values in v according to possibly repeated indexes in iv
+//' @param iv An integer vector, obtained with \code{ij2ijv_i(...)$iv}
+//' @param v A numeric vector
+//' @return Numeric vector
+//' @export
 // [[Rcpp::export]]
 NumericVector iv2v(IntegerVector& iv, NumericVector& v) {
-   // sum values in v according to possibly repeated indexes in iv
+   // 
    if (iv.size() != v.size()) {
       snprintf(mes, NMES, "Sizes of iv (%d) and v (%d) must be equal", (int) iv.size(), (int) v.size());
       stop(mes);
@@ -477,11 +479,18 @@ NumericVector iv2v(IntegerVector& iv, NumericVector& v) {
       res[iv[i]] += v[i];
    return res;
 }
+
+//' Dot Product SparseMatrix*DenseArray
+//'
+//' Dot product of simple triplet matrix x (m x n) (measurement matrix) and a dense array y (n x k x l).
+//' Only slices of y_ from lsel vector are used.
+//' @param x A list, sparse matrix of type slam
+//' @param y_ A numeric 3d array
+//' @param lsel An integer vector
+//' @return An array with dimensions (m x len(lsel) x k), i.e. it is permuted on the fly.
+//' @export
 // [[Rcpp::export]]
 NumericVector mm_xpf(List x, NumericVector y_, IntegerVector lsel) {
-   // Dot product of simple triplet matrix x (m x n) (measurement matrix) and a dense array y (n x k x l).
-   // Only slices of y_ from lsel vector are used.
-   // Result array has dimensions (m x len(lsel) x k), i.e. it is permuted on the fly.
    //Rcout << "here" << endl;
    int m=x["nrow"], n=x["ncol"], k; //, l;
    //print(x);
@@ -518,11 +527,17 @@ NumericVector mm_xpf(List x, NumericVector y_, IntegerVector lsel) {
    }
    return r_;
 }
+//' Update Matrix by a Cascade of Dot Product
+//'
+//' \code{xpfw[...]-=jrhs%*%ff}
+//' \code{dim(xpfw)=c(nb_row, nb_ff+nb_fgr, ntico)}
+//' \code{dim(jrhs%*%ff)=c(nb_row*ntico, nb_ff+nb_fgr)}
+//' @param jrhs A sparse matrix of type slam
+//' @param ff A sparse matrix of type slam
+//' @param xpfw A numeric matrix
+//' @export
 // [[Rcpp::export]]
 void jrhs_ff(List jrhs, List ff, NumericVector xpfw) {
-   // xpfw[...]-=jrhs%*%ff
-   // dim(xpfw)=nb_row, nb_ff+nb_fgr, ntico
-   // dim(jrhs%*%ff)=nb_row*ntico, nb_ff+nb_fgr
    IntegerVector ir=as<IntegerVector>(jrhs["i"])-1;
    IntegerVector jr=as<IntegerVector>(jrhs["j"])-1;
    NumericVector vr=as<NumericVector>(jrhs["v"]);

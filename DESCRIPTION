@@ -1,12 +1,16 @@
 Package: multbxxc
 Type: Package
-Title: Auxiliary routines for influx_si software
+Title: Auxiliary Routines for Influx Software
 Version: 1.0
-Date: 2019-10-16
+Date: 2019-11-06
 Author: Serguei Sokol
 Maintainer: Serguei Sokol <sokol@insa-toulouse.fr>
-Description: Contains auxiliary routines for influx_si software. This packages is not intended to be used directly. influx_s was published: Sokol et al. (2012) <doi:10.1093/bioinformatics/btr716>.
+Description: Contains auxiliary routines for influx software. This packages is not intended to be used directly. Influx was published here: Sokol et al. (2012) <doi:10.1093/bioinformatics/btr716>.
 License: GPL (>= 2)
-Imports: Rcpp (>= 1.0.2)
+Imports: Rcpp (>= 1.0.0)
 LinkingTo: Rcpp, RcppArmadillo, rmumps
-Depends: R (>= 3.4), rmumps
+Depends: R (>= 3.4), rmumps (>= 5.2.1-6)
+URL: https://metasys.insa-toulouse.fr/software/influx/
+RoxygenNote: 6.1.1
+Encoding: UTF-8
+Suggests: testthat
