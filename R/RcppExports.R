@@ -11,6 +11,7 @@
 #' v, i, and j describing triplet storage.
 #' @param c A dense array, the size of c is (ldc, nc_c, ntico), ldc must be >= ncol(b)
 #' @param a A dense array, the size of a is (nr_b, nc_c, ntico)
+#' @return None
 #' @export
 mult_bxxc <- function(a, b, c) {
     invisible(.Call(`_multbxxc_mult_bxxc`, a, b, c))
@@ -33,7 +34,7 @@ mult_bxxc <- function(a, b, c) {
 #' @param ali A list of matrices or Rmumps objects
 #' @param s A 3d numeric array, is the source term, its last margin corresponds to time. \code{s[,,i]} can be a matrix or a vector(== 1-column matrix) 
 #' @param ilua An integer vector, \code{ilua[i]} gives the list index in \code{ali} for a given \eqn{dt_i}. In such a way, \code{ali} may be shorter than time points.
-#' 
+#' @return None
 #' @export
 solve_ieu <- function(invdt, x0_, M, ali, s, ilua) {
     invisible(.Call(`_multbxxc_solve_ieu`, invdt, x0_, M, ali, s, ilua))
@@ -47,6 +48,10 @@ solve_ieu <- function(invdt, x0_, M, ali, s, ilua) {
 #' @param ti An integer vector
 #' @param tj An integer vector
 #' @return An integer vector
+#' @examples
+#' match_ij(1:2, 1:2, 0:4, 0:4)
+#' # [1] 2 3
+#'
 #' @export
 match_ij <- function(ix, jx, ti, tj) {
     .Call(`_multbxxc_match_ij`, ix, jx, ti, tj)
@@ -70,6 +75,16 @@ match_ij <- function(ix, jx, ti, tj) {
 #' @param mv An integer vector or matrix, describe margins to operate on
 #' @param sop A string, describes an operator to apply
 #' @param src A numeric array, source (may be replicated to fit the size of dst)
+#' @return None
+#' @examples
+#' a=matrix(1, 3, 3) # 3x3 matrix of 1's
+#' b=1:3
+#' bop(a, 2, "+=", b) # a += b, here b will be repeated
+#' a
+#' #      [,1] [,2] [,3]
+#' # [1,]    2    2    2
+#' # [2,]    3    3    3
+#' # [3,]    4    4    4
 #' @export
 bop <- function(dst, mv, sop, src) {
     invisible(.Call(`_multbxxc_bop`, dst, mv, sop, src))
@@ -80,6 +95,12 @@ bop <- function(dst, mv, sop, src) {
 #' Write new dimension vector while keeping the old memory
 #' @param x A numeric array
 #' @param di An integer vector, new dimensions
+#' @return None
+#' @examples
+#' a=matrix(as.double(1:12), 6, 2)
+#' redim(a, c(3, 4))
+#' dim(a)
+#' # [1] 3 4
 #' @export
 redim <- function(x, di) {
     invisible(.Call(`_multbxxc_redim`, x, di))
@@ -91,6 +112,14 @@ redim <- function(x, di) {
 #' New memory cannot be greater than the very first allocation
 #' @param x_ A numeric array
 #' @param di An integer vector, new dimensions
+#' @return None
+#' @examples
+#' a=matrix(as.double(1:12), 6, 2)
+#' resize(a, c(2, 2))
+#' a
+#' #      [,1] [,2]
+#' # [1,]    1    3
+#' # [2,]    2    4
 #' @export
 resize <- function(x_, di) {
     invisible(.Call(`_multbxxc_resize`, x_, di))

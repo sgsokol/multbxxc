@@ -21,3 +21,8 @@ An integer vector
 \description{
 Match ix,jx-couple in ti,tj-table and return their 1-based positions (0 for non matched couples)
 }
+\examples{
+match_ij(1:2, 1:2, 0:4, 0:4)
+# [1] 2 3
+
+}

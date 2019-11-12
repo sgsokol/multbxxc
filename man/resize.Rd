@@ -11,7 +11,18 @@ resize(x_, di)
 
 \item{di}{An integer vector, new dimensions}
 }
+\value{
+None
+}
 \description{
 Write new dimension vector while keeping the old memory if possible
 New memory cannot be greater than the very first allocation
+}
+\examples{
+a=matrix(as.double(1:12), 6, 2)
+resize(a, c(2, 2))
+a
+#      [,1] [,2]
+# [1,]    1    3
+# [2,]    2    4
 }

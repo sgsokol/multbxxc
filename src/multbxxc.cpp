@@ -37,6 +37,7 @@ char mes[NMES]={0};
 //' v, i, and j describing triplet storage.
 //' @param c A dense array, the size of c is (ldc, nc_c, ntico), ldc must be >= ncol(b)
 //' @param a A dense array, the size of a is (nr_b, nc_c, ntico)
+//' @return None
 //' @export
 // [[Rcpp::export]]
 void mult_bxxc(NumericVector a, List b, NumericVector c) {
@@ -99,7 +100,7 @@ void mult_bxxc(NumericVector a, List b, NumericVector c) {
 //' @param ali A list of matrices or Rmumps objects
 //' @param s A 3d numeric array, is the source term, its last margin corresponds to time. \code{s[,,i]} can be a matrix or a vector(== 1-column matrix) 
 //' @param ilua An integer vector, \code{ilua[i]} gives the list index in \code{ali} for a given \eqn{dt_i}. In such a way, \code{ali} may be shorter than time points.
-//' 
+//' @return None
 //' @export
 // [[Rcpp::export]]
 void solve_ieu(vec& invdt, const SEXP& x0_, mat& M, ListOf<RObject> ali, cube s, ivec& ilua) {
@@ -191,6 +192,10 @@ typedef std::pair<size_t, ui64> iui64;
 //' @param ti An integer vector
 //' @param tj An integer vector
 //' @return An integer vector
+//' @examples
+//' match_ij(1:2, 1:2, 0:4, 0:4)
+//' # [1] 2 3
+//'
 //' @export
 // [[Rcpp::export]]
 IntegerVector match_ij(IntegerVector ix, IntegerVector jx, IntegerVector ti, IntegerVector tj) {
@@ -248,6 +253,16 @@ IntegerVector match_ij(IntegerVector ix, IntegerVector jx, IntegerVector ti, Int
 //' @param mv An integer vector or matrix, describe margins to operate on
 //' @param sop A string, describes an operator to apply
 //' @param src A numeric array, source (may be replicated to fit the size of dst)
+//' @return None
+//' @examples
+//' a=matrix(1, 3, 3) # 3x3 matrix of 1's
+//' b=1:3
+//' bop(a, 2, "+=", b) # a += b, here b will be repeated
+//' a
+//' #      [,1] [,2] [,3]
+//' # [1,]    2    2    2
+//' # [2,]    3    3    3
+//' # [3,]    4    4    4
 //' @export
 // [[Rcpp::export]]
 void bop(NumericVector& dst, const IntegerVector& mv, const std::string& sop, NumericVector& src) {
@@ -384,6 +399,12 @@ void bop(NumericVector& dst, const IntegerVector& mv, const std::string& sop, Nu
 //' Write new dimension vector while keeping the old memory
 //' @param x A numeric array
 //' @param di An integer vector, new dimensions
+//' @return None
+//' @examples
+//' a=matrix(as.double(1:12), 6, 2)
+//' redim(a, c(3, 4))
+//' dim(a)
+//' # [1] 3 4
 //' @export
 // [[Rcpp::export]]
 void redim(NumericVector& x, uvec& di) {
@@ -400,6 +421,14 @@ void redim(NumericVector& x, uvec& di) {
 //' New memory cannot be greater than the very first allocation
 //' @param x_ A numeric array
 //' @param di An integer vector, new dimensions
+//' @return None
+//' @examples
+//' a=matrix(as.double(1:12), 6, 2)
+//' resize(a, c(2, 2))
+//' a
+//' #      [,1] [,2]
+//' # [1,]    1    3
+//' # [2,]    2    4
 //' @export
 // [[Rcpp::export]]
 void resize(SEXP& x_, uvec& di) {

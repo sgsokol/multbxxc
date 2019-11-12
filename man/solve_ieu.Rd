@@ -19,6 +19,9 @@ solve_ieu(invdt, x0_, M, ali, s, ilua)
 
 \item{ilua}{An integer vector, \code{ilua[i]} gives the list index in \code{ali} for a given \eqn{dt_i}. In such a way, \code{ali} may be shorter than time points.}
 }
+\value{
+None
+}
 \description{
 The system is defined as \eqn{M*dx/dt=a*x+s} where M is a diagonal
 matrix given by its diagonal vector M (which has a form of matrix for

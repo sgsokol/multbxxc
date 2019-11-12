@@ -1,8 +1,8 @@
 Package: multbxxc
 Type: Package
 Title: Auxiliary Routines for Influx Software
-Version: 1.0
-Date: 2019-11-06
+Version: 1.0.1
+Date: 2019-11-12
 Author: Serguei Sokol
 Maintainer: Serguei Sokol <sokol@insa-toulouse.fr>
 Description: Contains auxiliary routines for influx software. This packages is not intended to be used directly. Influx was published here: Sokol et al. (2012) <doi:10.1093/bioinformatics/btr716>.

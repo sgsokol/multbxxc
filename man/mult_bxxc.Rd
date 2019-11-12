@@ -14,6 +14,9 @@ v, i, and j describing triplet storage.}
 
 \item{c}{A dense array, the size of c is (ldc, nc_c, ntico), ldc must be >= ncol(b)}
 }
+\value{
+None
+}
 \description{
 Calculate Inplace a Series of Dot Product
 }

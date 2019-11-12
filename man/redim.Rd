@@ -11,6 +11,15 @@ redim(x, di)
 
 \item{di}{An integer vector, new dimensions}
 }
+\value{
+None
+}
 \description{
 Write new dimension vector while keeping the old memory
+}
+\examples{
+a=matrix(as.double(1:12), 6, 2)
+redim(a, c(3, 4))
+dim(a)
+# [1] 3 4
 }

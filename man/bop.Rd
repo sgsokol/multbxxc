@@ -15,6 +15,9 @@ bop(dst, mv, sop, src)
 
 \item{src}{A numeric array, source (may be replicated to fit the size of dst)}
 }
+\value{
+None
+}
 \description{
 src array is added (if sop=="+=") to dst[...]
 or any other manipulation is made according to sop parameter
@@ -28,4 +31,14 @@ mv can be: \itemize{
    each row of this matrix is a multidimensional index in dst array.
 }
 sop is one off: "=" (copy src to dst[]), "+=", "-=", "*=", "/="
+}
+\examples{
+a=matrix(1, 3, 3) # 3x3 matrix of 1's
+b=1:3
+bop(a, 2, "+=", b) # a += b, here b will be repeated
+a
+#      [,1] [,2] [,3]
+# [1,]    2    2    2
+# [2,]    3    3    3
+# [3,]    4    4    4
 }
